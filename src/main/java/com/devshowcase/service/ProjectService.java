@@ -9,11 +9,15 @@ import com.devshowcase.repository.ProfileRepository;
 import com.devshowcase.repository.ProjectRepository;
 import com.devshowcase.repository.TechnologyRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+
 
 @Service
 public class ProjectService {
@@ -66,6 +70,24 @@ public class ProjectService {
                 .map(this::toResponseDTO)
                 .toList();
     }
+    public Page<ProjectResponseDTO> findAll(
+            String technology,
+            int page,
+            int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<Project> projects;
+
+        if (technology != null && !technology.isBlank()) {
+            projects = projectRepository
+                    .findByTechnologiesNameIgnoreCase(technology, pageable);
+        } else {
+            projects = projectRepository.findAll(pageable);
+        }
+
+        return projects.map(this::toResponseDTO);
+    }
 
     private ProjectResponseDTO toResponseDTO(Project project) {
 
@@ -80,7 +102,24 @@ public class ProjectService {
                 project.getDescription(),
                 project.getUrl(),
                 project.getProfile().getId(),
-                technologyIds
+                technologyIds,
+                project.getAverageRating(),
+                project.getUpvotes()
         );
+    }
+    public ProjectResponseDTO upvote(Long projectId) {
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Projeto não encontrado"));
+
+        if (project.getUpvotes() == null) {
+            project.setUpvotes(0);
+        }
+
+        project.setUpvotes(project.getUpvotes() + 1);
+
+        Project savedProject = projectRepository.save(project);
+
+        return toResponseDTO(savedProject);
     }
 }
